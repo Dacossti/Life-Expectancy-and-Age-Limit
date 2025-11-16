@@ -1,7 +1,7 @@
 # life-expectancy
 Life Expectancy and Age Bound
 
-
+```mermaid
 mindmap
   root)Projet Tutoré - Espérance de Vie & Age Limite(
     Age Limite
@@ -13,4 +13,5 @@ mindmap
     Espérance de Vie
         🌡️ Collecte des Données: HLD, Gapminder, INSEE
         ✂️ Analyse des Données
-        ♨️ Visualisation des Données: Boxplot, Histogramme, 
+        ♨️ Visualisation des Données: Boxplot, Histogramme, Time Series etc
+```
