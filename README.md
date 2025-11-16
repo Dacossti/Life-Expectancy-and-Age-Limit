@@ -3,7 +3,7 @@ Life Expectancy and Age Bound
 
 ```mermaid
 mindmap
-  root)Projet Tutoré — Espérance de Vie & Limite d'Âge(
+  root)Projet Tutoré — Espérance de Vie & Âge Limite(
     
     Espérance de Vie
         📊 Collecte des Données
