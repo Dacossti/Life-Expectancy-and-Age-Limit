@@ -4,7 +4,7 @@
 
 This project investigates:
 1. **Life Expectancy** (LE) across countries, years, age groups, and sexes.
-2. **Human Maximum Lifespan (Age Bound)** estimation using Extreme Value Theory (EVT).
+2. **Human Maximum Lifespan (Age Limit)** estimation using Extreme Value Theory (EVT).
 
 The workflow combines data processing, statistical analysis, geospatial visualization, and advanced mathematical modeling.
 
