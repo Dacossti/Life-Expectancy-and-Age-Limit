@@ -1,4 +1,4 @@
-# Life Expectancy and Age Bound
+# Life Expectancy and Age Limit
 
 ## 🧭 Project Overview
 
