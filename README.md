@@ -6,7 +6,7 @@
 [![HLD](https://img.shields.io/badge/Data-HLD-blueviolet)](https://www.lifetable.de)
 [![HMD](https://img.shields.io/badge/Data-HMD-5A9BD5)](https://www.mortality.org)
 [![IDL](https://img.shields.io/badge/Data-IDL-8A2BE2)](https://www.supercentenarians.org)
-![Life Expectancy](https://img.shields.io/badge/Topic-Life%20Expectancy-lightgrey)
+![Life Expectancy](https://img.shields.io/badge/Topic-Life%20Expectancy-lightgreen)
 ![Reproducible](https://img.shields.io/badge/Reproducible-Yes-success)
 
 ## 🧭 Project Overview
