@@ -1,0 +1,13 @@
+# Data files
+data/*.csv
+data/*.rds
+
+# Outputs
+outputs/
+*.html
+*.png
+
+# R / Shiny
+.Rhistory
+.RData
+.Rproj.user

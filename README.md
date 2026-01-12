@@ -1,5 +1,14 @@
 # Life Expectancy and Age Limit
 
+![R](https://img.shields.io/badge/R-%3E%3D%204.1-blue)
+![Shiny](https://img.shields.io/badge/Shiny-Interactive-orange)
+![Plotly](https://img.shields.io/badge/Plotly-Interactive%20Graphics-3F4F75)
+![Data Source](https://img.shields.io/badge/Data-Human%20Life--table%20Database-blueviolet)
+[![HLD](https://img.shields.io/badge/Data-HLD-blueviolet)](https://www.lifetable.de)
+[![HMD](https://img.shields.io/badge/Data-HMD-5A9BD5)](https://www.mortality.org)
+[![IDL](https://img.shields.io/badge/Data-IDL-8A2BE2)](https://www.supercentenarians.org)
+
+
 ## 🧭 Project Overview
 
 This project investigates:
@@ -27,11 +36,13 @@ The workflow combines data processing, statistical analysis, geospatial visualiz
 
 ### 📂 Data Used
 
-- **Human Life-Table Database (HLD)** — primary source of life expectancy data.  
-- **Gapminder** — complementary country-level demographic indicators.  
-- **INSEE** — detailed demographic data for France.  
+- **Human Life-Table Database (HLD)** — primary source of life expectancy at birth data.
+- **Human Mortality Database (HMD)** — complementary country-level mortality and demographic indicators.
+- **International Database on Longevity (IDL)** — detailed longevity and extreme-age demographic data (used for validation and contextual analysis).
 
-All datasets were cleaned, harmonized, and matched using country names and ISO3 codes before analysis.
+All datasets were cleaned, harmonized, and matched using standardized country names and ISO3 codes prior to analysis.  
+No raw data from these sources is redistributed in this repository.
+
 
 ---
 
