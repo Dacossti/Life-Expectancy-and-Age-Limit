@@ -3,17 +3,17 @@
 ![R](https://img.shields.io/badge/R-%3E%3D%204.1-blue)
 ![Shiny](https://img.shields.io/badge/Shiny-Interactive-orange)
 ![Plotly](https://img.shields.io/badge/Plotly-Interactive%20Graphics-3F4F75)
-![Data Source](https://img.shields.io/badge/Data-Human%20Life--table%20Database-blueviolet)
 [![HLD](https://img.shields.io/badge/Data-HLD-blueviolet)](https://www.lifetable.de)
 [![HMD](https://img.shields.io/badge/Data-HMD-5A9BD5)](https://www.mortality.org)
 [![IDL](https://img.shields.io/badge/Data-IDL-8A2BE2)](https://www.supercentenarians.org)
-
+![Life Expectancy](https://img.shields.io/badge/Topic-Life%20Expectancy-lightgrey)
+![Reproducible](https://img.shields.io/badge/Reproducible-Yes-success)
 
 ## 🧭 Project Overview
 
 This project investigates:
-1. **Life Expectancy** (LE) across countries, years, age groups, and sexes.
-2. **Human Maximum Lifespan (Age Limit)** estimation using Extreme Value Theory (EVT).
+1. **Life Expectancy** trends across genders, countries and years.
+2. **Human Lifespan Limit** estimation using Extreme Value Theory (EVT).
 
 The workflow combines data processing, statistical analysis, geospatial visualization, and advanced mathematical modeling.
 
@@ -38,7 +38,6 @@ The workflow combines data processing, statistical analysis, geospatial visualiz
 
 - **Human Life-Table Database (HLD)** — primary source of life expectancy at birth data.
 - **Human Mortality Database (HMD)** — complementary country-level mortality and demographic indicators.
-- **International Database on Longevity (IDL)** — detailed longevity and extreme-age demographic data (used for validation and contextual analysis).
 
 All datasets were cleaned, harmonized, and matched using standardized country names and ISO3 codes prior to analysis.  
 No raw data from these sources is redistributed in this repository.
@@ -65,29 +64,9 @@ No raw data from these sources is redistributed in this repository.
 
 ### 📊 Analyses Performed
 
-- Distribution of life expectancy by **age** and **sex**  
-- Time series analysis of life expectancy trends  
-- **Sex gap analysis** (Female − Male)  
-- Cross-country comparisons  
-- Regional or continent-level comparisons  
-- Ranking tables (Top 10 / Bottom 10 life expectancy values)
-
-
-### 🌍 Choropleth Maps
-
-Choropleth maps are generated automatically using:
-
-```r
-choropleth_by_year(year, age)
-```
-
-Maps are produced considering any chosen age (e.g., e(0), e(65), etc.) for:
-
-- Male
-- Female
-- Male + Female
-
-All outputs images are saved in *outputs/*
+- Distribution of life expectancy by **age** and **sex**  (boxplot, histogram)
+- Time series analysis of life expectancy trends: Sex gap analysis (Female − Male), Cross-country comparisons  
+- Regional or continent-level comparisons  (choropleth maps)
 
 ---
 
@@ -104,9 +83,7 @@ All outputs images are saved in *outputs/*
 
 ### 📂 Data Used
 
-- **Maximum observed age** by country and year (`x_max`).  
-- Selection of extreme values using the **POT (Peak Over Threshold)** method.  
-- Cleaned mortality data extracted from demographic life tables.  
+- **International Database on Longevity (IDL)** — detailed longevity and extreme-age demographic data (used for extreme values analysis and future estimation of human lifespan limit).
 
 ---
 
@@ -142,72 +119,96 @@ To validate the GPD fit and the threshold choice, we rely on:
 
 ```mermaid
 mindmap
-  root)Projet Tutoré — Espérance de Vie & Âge Limite(
+  root) Human Life Expectancy & Lifespan Limit(
     
-    Espérance de Vie
-        📊 Collecte des Données
+    Life Expectancy
+        📊 Data Collection
             HLD (Human Life-Table Database)
-            Gapminder
-            INSEE
-        🧹 Préparation & Nettoyage
-            Harmonisation des colonnes
-            Gestion des doublons et valeurs manquantes
-            Conversion pays → ISO3
-        🔎 Analyses
-            Espérance de vie par sexe
-            Espérance de vie à différents âges e(x)
-            Tendances temporelles (time series)
-        🌍 Visualisations
-            Cartes choroplèthes (hommes / femmes / total)
-            Pyramides des âges
-            Boxplots et distributions
-            Évolution annuelle
+            HMD (Human Mortality Database)
+            
+        🧹 Data Preparation & Cleaning
+            Column harmonization
+            Handling duplicates & missing values
+            Country → ISO3 conversion
+            
+        🔎 Analysis
+            Life expectancy by sex
+            Life expectancy at different ages e(x)
+            Temporal trends (time series)
+            
+        🌍 Visualizations
+            Choropleth maps (male / female / total)
+            Population pyramids
+            Boxplots & distributions
+            Yearly evolution
     
-    Limite d'Âge (Age Bound)
-        📐 Modélisation de la longévité extrême
-            Théorie des Valeurs Extrêmes (EVT)
-            Loi de Pareto Généralisée (GPD)
-            Maximum annuel / Peak Over Threshold
-        ⚙️ Estimation de l'Âge Limite
-            Choix du seuil
-            Estimation des paramètres (ξ, σ)
-            Projection de l’âge maximal possible
-        🧪 Validation & Interprétation
-            Diagnostics EVT
-            Comparaison entre pays
-            Différences hommes / femmes
+    Age Limits
+        📊 Data Collection
+            IDL (International Database on Longevity)
+            
+        📐 Extreme Longevity Modeling
+            Extreme Value Theory (EVT)
+            Generalized Pareto Distribution (GPD)
+            Annual maximum / Peak Over Threshold
+            
+        ⚙️ Age Limit Estimation
+            Threshold selection
+            Parameter estimation (ξ, σ)
+            Projection of maximum possible age
+            
+        🧪 Validation & Interpretation
+            EVT diagnostics
+            Cross-country comparisons
+            Sex differences
     
-    Rendu Final
-        📁 Automatisation (R)
-            Scripts reproductibles
-            Fonctions de génération de choroplèthes
-            Graphiques exportés automatiquement
-        📝 Rapport & Présentation
-            Méthodologie
-            Résultats principaux
-            Limites & perspectives
+    Final Deliverables
+        📁 Automation (R)
+            Reproducible scripts
+            Choropleth generation functions
+            Automatic plot export
+            
+        📝 Report & Presentation
+            Methodology
+            Key results
+            Limitations & future directions
+
 ```
 
 
 ## 🧱 Project Structure
 
-```
+```bash
 life
 📁 data/
-    HLD_database.csv
-    HLD_database.csv
+    HLD_database.csv             # You should upload the data yourself from the official site
     
 
 📁 scripts/
-    LifeExpectancyHLD.R          # Ongoing
-    LifeExpectancyHMD.R          # Ongoing
+    plot_functions.R             # Ongoing
+    map_utils.R                  # Ongoing
     evt_age_bound.R              # Future
-
-📁 outputs/
-    hld_outputs/                
-    hMd_outputs/
-    evt_results/                  
+                 
 
 📄 README.md
 
 ```
+
+## 📊 Data Source and Acknowledgment
+
+This project uses data from the **Human Life-table Database (HLD)**, maintained by the **Max Planck Institute for Demographic Research**.
+
+🌐 [https://www.lifetable.de](https://www.lifetable.de)
+
+The HLD database provides high-quality life table data for multiple countries and time periods and is widely used in demographic research.
+
+---
+
+⚠️ **Important:**  
+The HLD dataset is **not included** in this repository due to data usage and redistribution restrictions.
+
+Please refer to `data/README.md` for instructions on how to obtain the data.
+
+---
+
+📌 **Citation:**  
+If you use this project or its results, please cite the HLD database appropriately.
