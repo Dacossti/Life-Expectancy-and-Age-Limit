@@ -180,12 +180,12 @@ mindmap
 ```bash
 life
 📁 data/
-    HLD_database.csv             # You should upload the data yourself from the official site
+    HLD_database.csv             # You should upload the data yourself from the official site and place it there with this name
     
 
 📁 scripts/
-    plot_functions.R             # Ongoing
-    map_utils.R                  # Ongoing
+    plot_functions.R             # helper functions to plot boxplot, histogram, choropleth maps and timeseries animation
+    map_utils.R                  # helper function to map country names to ISO3
     evt_age_bound.R              # Future
                  
 
