@@ -1,0 +1,328 @@
+---
+title: "Projet tutoré"
+subtitle: "Espérance de vie & Age limite"
+author: 
+- Stave Icnel Dany OSIAS
+
+
+date: 2026-04-14
+lang: fr
+
+format:
+  html:
+    toc: true
+    theme: flatly
+    number-sections: false
+    code-line-numbers: true
+    highlight-style: tango
+    self-contained: true
+    code-fold: false
+    code-summary: "Voir le code"
+    code-tools: true
+    include-other-formats: false
+
+execute:
+  echo: true
+
+# localized captions
+figureTitle: "Fig."
+tableTitle: "Tableau"
+listingTitle: "Listing"
+lofTitle: "Liste de Figures"
+lotTitle: "Liste de tableaux"
+tocTitle: "Table des matières"
+lolTitle: "Listings"
+
+polyglossia-lang:
+  name: french
+---
+
+<style>
+.callout-tip .callout-icon::before {
+  display: none !important;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+}
+thead tr {
+  background-color: #18bc9c;
+  color: white;
+}
+}
+th, td {
+  padding: 10px 14px;
+  border: 1px solid #dee2e6;
+}
+</style>
+
+
+::: {.unnumbered}
+\clearpage
+:::
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo    = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center"
+)
+```
+
+
+```{r}
+library(knitr)
+library(kableExtra)
+library(dplyr)
+library(tidyr)
+library(extRemes)
+
+JOURS_PAR_ANNEE <- 365.25
+
+# Fonctions utilitaires
+stability_plot_gpd <- function(x, seuils) {
+  
+  resultats <- lapply(seuils, function(u) {
+    exc <- x[x > u]
+    if (length(exc) < 30) return(c(xi = NA, sigma_adj = NA, n = length(exc)))
+    
+    fit <- tryCatch({
+      extRemes::fevd(x, threshold = u, type = "GP", method = "Lmoments")
+    }, error = function(e) NULL)
+    
+    if (is.null(fit)) return(c(xi = NA, sigma_adj = NA, n = length(exc)))
+    
+    xi        <- unname(fit$results["shape"])
+    sigma     <- unname(fit$results["scale"])
+    sigma_adj <- sigma - xi * u
+    
+    c(xi = xi, sigma_adj = sigma_adj, n = length(exc))
+  })
+  
+  xi_vals        <- sapply(resultats, `[[`, "xi")
+  sigma_adj_vals <- sapply(resultats, `[[`, "sigma_adj")
+  n_vals         <- sapply(resultats, `[[`, "n")
+  valide         <- is.finite(xi_vals)
+  
+  
+  par(mfrow = c(2, 1), mar = c(4, 4, 3, 1))
+  
+    
+  plot(seuils[valide], sigma_adj_vals[valide], type = "l", col = "darkorange", lwd = 1.5,
+       xlab = "",
+       ylab = bquote("Echelle " ~ hat(sigma)*"*"),
+       main = "")
+  abline(h = mean(sigma_adj_vals[valide], na.rm = TRUE), lty = 2, col = "gray")
+
+  axis(side = 3, at = seuils[valide],
+       labels = round(n_vals[valide]),
+       cex.axis = 0.5, col.axis = "blue", tick = FALSE)
+  mtext("Nombre d'excès", side = 3, line = 2, col = "blue", cex = 0.8)
+  
+  plot(seuils[valide], xi_vals[valide], type = "l", col = "darkred", lwd = 1.5,
+       xlab = "Seuil u (jours)",
+       ylab = bquote("Forme " ~ hat(xi)),
+       main = "")
+  abline(h = 0, lty = 2, col = "gray")
+  
+  par(mfrow = c(1, 1))
+  
+  invisible(data.frame(
+    seuil     = seuils[valide],
+    xi        = xi_vals[valide],
+    sigma_adj = sigma_adj_vals[valide],
+    n_exc     = n_vals[valide]
+  ))
+}
+
+
+gpd_endpoint_estimate <- function(x, u) {
+  
+  # Ajustement sur les données
+  fit <- tryCatch({
+    extRemes::fevd(x, threshold = u, type = "GP", method = "Lmoments")
+  }, error = function(e) stop("Echec de l'ajustement GPD sur les données originales."))
+  
+  xi    <- unname(fit$results["shape"])
+  sigma <- unname(fit$results["scale"])
+  
+  if (xi >= 0) stop("xi >= 0 : pas de borne supérieure finie.")
+  
+  x_star_gpd <- u - sigma / xi
+  
+  tableau <- data.frame(
+    Parametre = c(
+      "Seuil u",
+      "xi (forme)",
+      "sigma (échelle)",
+      "x* (âge limite)"
+    ),
+    Jours = c(
+      sprintf("%.0f j", u),
+      sprintf("%.4f", xi),
+      sprintf("%.2f j", sigma),
+      sprintf("%.1f j", x_star_gpd)
+    ),
+    Annees = c(
+      sprintf("%.2f ans", u / JOURS_PAR_ANNEE),
+      "—",
+      "—",
+      sprintf("%.2f ans", x_star_gpd / JOURS_PAR_ANNEE)
+    )
+  )
+  
+  tbl <- kable(tableau,
+               col.names = c("Paramètre", "Jours", "Années"),
+               align     = c("l", "r", "r"),
+               caption   = "Résultats POT + GPD (L-moments)") %>%
+         kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                       full_width = FALSE,
+                       position   = "left")
+  
+  # Retourne les deux : le tableau ET les valeurs numériques
+  list(
+    table  = tbl,         
+    u      = u,
+    xi     = xi,
+    sigma  = sigma,
+    x_star = x_star_gpd
+  )
+}
+
+```
+
+
+
+```{r}
+library(readxl)
+data_sup <-read_excel("C:/Users/ASUS/Downloads/R/Project/Supercentenarians/supercentenaires.xlsx")
+age_JC <- max(data_sup$AGEDAYS)
+
+boxplot(data_sup$AGEDAYS)
+```
+
+# Supercentenaires de la France
+
+```{r}
+data_France_105 <- data_sup$AGEDAYS[data_sup$COUNTRY == "FRA"]
+length(data_France_105)
+```
+
+
+```{r}
+mrlplot(data_France_105)
+threshrange.plot(data_France_105, nint=20, type="GP", r=c(39000, 41000))
+
+seuils <- seq(39000, 41000, by = 30)
+
+res <- stability_plot_gpd(data_France_105, seuils)
+```
+
+
+```{r}
+seuil_France_105=39420
+
+gpd_mom_France_105= fevd(data_France_105, threshold = seuil_France_105,type = "GP",method = "Lmoments")
+
+summary(gpd_mom_France_105)
+```
+
+
+```{r}
+plot(gpd_mom_France_105)
+```
+
+
+```{r}
+# Age limite avec la méthode des moments
+res_France_105 <- gpd_endpoint_estimate(x=data_France_105, u=seuil_France_105)
+
+res_France_105$table
+```
+
+
+
+# Supercentenaires à partir de 105 ans en France (sans JEANNE CALMENT) 
+
+```{r}
+data_France_105_sjc <- data_sup$AGEDAYS[data_sup$COUNTRY == "FRA" & data_sup$AGEYEARS < age_JC]
+```
+
+```{r}
+mrlplot(data_France_105_sjc)
+
+seuils <- seq(38500,41000, by = 30)
+
+res <- stability_plot_gpd(data_France_105_sjc, seuils)
+```
+
+
+```{r}
+seuil_France_105_sjc=39100
+
+gpd_mom_France_105_sjc= fevd(data_France_105_sjc, threshold = seuil_France_105_sjc,type = "GP",method = "Lmoments")
+
+summary(gpd_mom_France_105_sjc)
+```
+
+```{r}
+plot(gpd_mom_France_105_sjc)
+```
+
+
+```{r}
+# Age limite avec la méthode des moments
+res_France_105_sjc <- gpd_endpoint_estimate(x=data_France_105_sjc, u=seuil_France_105_sjc)
+
+res_France_105_sjc$table
+```
+
+
+
+```{r}
+library(knitr)
+library(kableExtra)
+
+
+# Tableau récapitulatif
+tableau <- data.frame(
+  Données = c(
+    "France 105",
+    "France 105 sans Jeanne Calment"
+  ),
+  
+  Seuil_jours = c(
+    seuil_France_105,
+    seuil_France_105_sjc
+  ),
+  
+  Seuil_annees = round(c(
+    seuil_France_105,
+    seuil_France_105_sjc
+    )/ 365, 2),
+  
+  Nb_exces = c(
+    length(data_France_105[data_France_105 > seuil_France_105]),
+    length(data_France_105[data_France_105 > seuil_France_105_sjc])
+  ),
+  
+  Âge_limite_ans = round(c(
+    res_France_105$x_star,             # France 105
+    res_France_105_sjc$x_star          # France 105 sans JC
+  )/ 365.25, 2)
+)
+
+
+kable(tableau,
+      col.names = c("Données", "Seuil (jours)", "Seuil (ans)", "Nb. d'excès", "Âge limite (ans)"),
+      caption = "Tableau récapitulatif des estimations par GPD et L-moments de l'âge limite par jeu de données",
+      align = c("l", "c", "c", "c", "c", "c"),
+      booktabs = TRUE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE,
+                latex_options = c("hold_position")) %>%
+  collapse_rows(columns = c(1, 3, 4), valign = "middle")
+```
+

@@ -1,0 +1,515 @@
+---
+title: "Projet tutoré"
+subtitle: "Espérance de vie & Age limite"
+author: 
+- Stave Icnel Dany OSIAS
+
+
+date: 2026-04-14
+lang: fr
+
+format:
+  html:
+    toc: true
+    theme: flatly
+    number-sections: false
+    code-line-numbers: true
+    highlight-style: tango
+    self-contained: true
+    code-fold: false
+    code-summary: "Voir le code"
+    code-tools: true
+    include-other-formats: false
+
+execute:
+  echo: true
+
+# localized captions
+figureTitle: "Fig."
+tableTitle: "Tableau"
+listingTitle: "Listing"
+lofTitle: "Liste de Figures"
+lotTitle: "Liste de tableaux"
+tocTitle: "Table des matières"
+lolTitle: "Listings"
+
+polyglossia-lang:
+  name: french
+---
+
+<style>
+.callout-tip .callout-icon::before {
+  display: none !important;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+}
+thead tr {
+  background-color: #18bc9c;
+  color: white;
+}
+}
+th, td {
+  padding: 10px 14px;
+  border: 1px solid #dee2e6;
+}
+</style>
+
+
+::: {.unnumbered}
+\clearpage
+:::
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo    = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  fig.width = 10,
+  fig.height = 5
+)
+
+library(readxl)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+JOURS_PAR_ANNEE <- 365.25
+```
+
+---
+
+# Fonctions
+
+```{r fonctions, echo=TRUE}
+
+# --- Estimateur des moments (Dekkers, Einmahl & de Haan, 1989) ---------------
+moment_estimator <- function(x, k) {
+  n   <- length(x)
+  xs  <- sort(x)
+  top <- xs[(n - k + 1):n]
+  Xnk <- xs[n - k]
+  lsp <- log(top) - log(Xnk)
+  M1  <- mean(lsp)
+  M2  <- mean(lsp^2)
+  gamma_hat <- M1 + 1 - 0.5 / (1 - M1^2 / M2)
+  list(gamma = gamma_hat, M1 = M1, M2 = M2, Xnk = Xnk)
+}
+
+# --- Estimateur du point terminal (formule 5) --------------------------------
+endpoint_estimator <- function(x, k, gamma) {
+  mom    <- moment_estimator(x, k)
+  b      <- mom$Xnk
+  a      <- (1 - min(0, gamma)) * b * mom$M1
+  x_star <- b - a / gamma
+  list(x_star = x_star, a = a, b = b)
+}
+
+# --- Variance asymptotique pour l'IC (formule 6) -----------------------------
+ci_var <- function(gamma) {
+  num   <- (1 - gamma)^2 * (1 - 3*gamma + 4*gamma^2)
+  denom <- gamma^4 * (1 - 2*gamma) * (1 - 3*gamma) * (1 - 4*gamma)
+  num / denom
+}
+
+# --- Variance asymptotique de gamma (Beirlant et al. 2004) ------------------
+avar_gamma <- function(gamma, k) {
+  if (abs(gamma) < 1e-8) return(NA)
+  num   <- (1 - gamma)^2 * (1 - 2*gamma) * (1 - gamma + 6*gamma^2)
+  denom <- (1 - 3*gamma) * (1 - 4*gamma) * k
+  num / denom
+}
+
+# --- Calcul des Zj (Beirlant et al. 2005) ------------------------------------
+compute_Zj <- function(x, k) {
+  n  <- length(x)
+  UH <- sapply(1:k, function(j) {
+    lsp <- log(x[(n - j + 1):n]) - log(x[n - j])
+    x[n - j] * mean(lsp)
+  })
+  sapply(1:(k - 1), function(j) (j + 1) * log(UH[j] / UH[j + 1]))
+}
+
+# --- Estimation de c(n/k) par OLS --------------------------------------------
+estimate_c <- function(Zj, gamma_ini, k) {
+  j_seq   <- 1:k
+  Zj_tilde  <- Zj[j_seq] - gamma_ini
+  poids <- (j_seq / k)^(-gamma_ini)
+  valid   <- is.finite(Zj_tilde) & is.finite(poids)
+  sum(Zj_tilde[valid] * poids[valid]) / sum(poids[valid]^2)
+}
+
+# --- AMSE estimé -------------------------------------------------------------
+amse_hat <- function(k, gamma_ini, Zj) {
+  av    <- avar_gamma(gamma_ini, k)
+  c_hat <- tryCatch(estimate_c(Zj, gamma_ini, k), error = function(e) NA)
+  if (is.na(c_hat) || !is.finite(av)) return(NA)
+  abias_coef <- (1 - 2*gamma_ini) / (gamma_ini * (1 - gamma_ini))
+  abias      <- abias_coef * c_hat
+  av + abias^2
+}
+```
+
+---
+
+# Chargement des données
+
+```{r chargement}
+df <- read_excel("C:/Users/ASUS/Downloads/R/Project/Supercentenarians/supercentenaires.xlsx")
+```
+
+\newpage
+
+---
+
+# France
+
+```{r france-data}
+data_France <- df$AGEDAYS[df$COUNTRY == "FRA"]
+n    <- length(data_France)
+x    <- sort(data_France)
+k_seq <- 2:(n - 1)
+cat("N =", n, "\n")
+cat("Age max =", max(x), "j  (", round(max(x)/JOURS_PAR_ANNEE, 2), "ans)\n")
+```
+
+## Courbe des estimateurs des moments $\hat{\gamma}$ 
+
+```{r france-gamma-k}
+gamma_k <- sapply(k_seq, function(k) {
+  tryCatch(moment_estimator(x, k)$gamma, error = function(e) NA)
+})
+
+plot(k_seq, gamma_k, type = "l", col = "black",
+     xlab = "k", ylab = expression(hat(gamma)),
+     main = "Estimateur des moments selon k — France",
+     ylim = c(-0.1, 0.05))
+abline(h = 0, lty = 2, col = "gray")
+```
+
+## Régions stables et Valeurs initiales $\hat{\gamma}_\text{ini}$
+
+```{r france-regions}
+k_stable_start  <- 7000
+k_stable_end    <- 10500
+
+
+gamma_ini_low  <- min(gamma_k[k_seq >= k_stable_start  & k_seq <= k_stable_end]) 
+gamma_ini_high <- max(gamma_k[k_seq >= k_stable_start  & k_seq <= k_stable_end])
+
+
+gamma_ini_seq <- seq(gamma_ini_low, gamma_ini_high, by = 0.01)
+s0            <- length(gamma_ini_seq)
+
+
+plot(k_seq, gamma_k, type = "l", col = "black",
+     xlab = "k", ylab = expression(hat(gamma)),
+     main = "Estimateur des moments — France (régions marquées)",
+     ylim = c(-0.1, 0.05))
+abline(h = 0, lty = 2, col = "gray")
+abline(v = c(k_stable_start,  k_stable_end),  lty = 2, col = "orange")
+legend("topright",
+       legend = c(paste0("Région stable [", k_stable_start,  ", ", k_stable_end,  "]  \nγ_ini_low = ",  round(gamma_ini_low, 2), "\nγ_ini_high = ",  round(gamma_ini_high, 2))),
+       col = c("orange"), lty = 2, lwd = 1.5, bty = "n", cex = 0.75)
+```
+
+## Courbe de l'AMSE moyen
+
+```{r france-amse}
+k_max_amse <- max(k_seq)
+k_seq_amse <- seq(2, k_max_amse, by=5)
+Zj_all     <- compute_Zj(x, k_max_amse)
+
+amse_matrix <- matrix(NA, nrow = s0, ncol = length(k_seq))
+for (s in 1:s0) {
+  gi <- gamma_ini_seq[s]
+  amse_matrix[s, ] <- sapply(k_seq, function(k) amse_hat(k, gi, Zj_all))
+}
+amse_avg <- colMeans(amse_matrix, na.rm = TRUE)
+
+plot(k_seq, amse_avg, type = "l", col = "navy",
+     xlab = "k", ylab = "AMSE moyen", ylim = c(0, 0.3),
+     main = "AMSE moyen de l'estimateur des moments — France")
+```
+
+## Calcul de $\hat{\gamma}$ final
+
+```{r france-gamma-final}
+k_gamma_min <- 4000
+k_gamma_max <- 6000
+
+gamma_final_france <- mean(gamma_k[k_seq >= k_gamma_min & k_seq <= k_gamma_max], na.rm = TRUE)
+
+plot(k_seq, amse_avg, type = "l", col = "navy",
+     xlab = "k", ylab = "AMSE moyen", ylim = c(0, 0.3),
+     main = "AMSE moyen de l'estimateur des moments — France")
+
+abline(v = c(k_gamma_min, k_gamma_max), lty = 2, col = "orange")
+```
+
+## Point terminal x*
+
+```{r france-endpoint}
+endpoint_estimates <- sapply(k_seq, function(k) {
+  tryCatch(endpoint_estimator(x, k, gamma_final_france)$x_star, error = function(e) NA)
+})
+
+plot(k_seq, endpoint_estimates, type = "l", col = "darkgreen",
+     xlab = "k", ylab = "x* (jours)", ylim=c(46500, 47500), 
+     main = bquote("Point terminal x* (" * hat(gamma) == .(round(gamma_final_france, 4)) * " fixé)"))
+```
+## Estimation finale de la limite x*
+
+```{r france-estimation-finale}
+# Région stable
+k_ep_min <- 7000
+k_ep_max <- 10500
+
+plot(k_seq, endpoint_estimates, type = "l", col = "darkgreen",
+     xlab = "k", ylab = "x* (jours)", ylim=c(46500, 47500), 
+     main = bquote("Estimation finale x* (" * hat(gamma) == .(round(gamma_final_france, 4)) * " fixé)"))
+
+k_ep_seq        <- k_ep_min:k_ep_max
+ep_vals         <- sapply(k_ep_seq, function(k) {
+  tryCatch(endpoint_estimator(x, k, gamma_final_france)$x_star, error = function(e) NA)
+})
+a_vals          <- sapply(k_ep_seq, function(k) {
+  tryCatch(endpoint_estimator(x, k, gamma_final_france)$a, error = function(e) NA)
+})
+
+x_star_france   <- mean(ep_vals, na.rm = TRUE)
+abline(h = x_star_france, lty = 2, col = "blue")
+abline(v = c(k_ep_min, k_ep_max), lty = 2, col = "orange")
+legend("topright",
+       legend = paste0("x* = ", round(x_star_france/JOURS_PAR_ANNEE, 2), " ans"),
+       col = "blue", lty = 2, bty = "n", cex = 0.8)
+```
+
+## Résultats
+
+```{r france-resultats}
+a_mean           <- mean(a_vals, na.rm = TRUE)
+k_mean           <- mean(k_ep_seq)
+se_xstar         <- sqrt(ci_var(gamma_final_france) / k_mean) * a_mean
+upper_95_france  <- x_star_france + qnorm(0.95) * se_xstar
+
+resultats <- data.frame(
+  Indicateur = c("Gamma estimé", "Âge maximum observé", "Age limite x*", "Borne supérieure (95%)"),
+  Valeur_jours = c(
+    round(gamma_final_france, 4),
+    round(max(x), 1),
+    round(x_star_france, 1),
+    round(upper_95_france, 1)
+  ),
+  Valeur_annees = c(
+    NA,
+    round(max(x) / JOURS_PAR_ANNEE, 2),
+    round(x_star_france / JOURS_PAR_ANNEE, 2),
+    round(upper_95_france / JOURS_PAR_ANNEE, 2)
+  )
+)
+
+kable(resultats, caption = "Tableau récapitulatif (France)", digits = 2)
+
+
+```
+
+\newpage
+
+---
+
+# France sans Jeanne Calment
+
+```{r france-sjc-data}
+age_JC <- max(data_France)
+data_France_sjc <- data_France[data_France < age_JC]
+n    <- length(data_France_sjc)
+x    <- sort(data_France_sjc)
+k_seq <- 2:(n - 1)
+cat("N =", n, "\n")
+cat("Age max =", max(x), "j  (", round(max(x)/JOURS_PAR_ANNEE, 2), "ans)\n")
+```
+
+## Courbe des estimateurs des moments $\hat{\gamma}$ 
+
+```{r france-sjc-gamma-k}
+gamma_k <- sapply(k_seq, function(k) {
+  tryCatch(moment_estimator(x, k)$gamma, error = function(e) NA)
+})
+
+plot(k_seq, gamma_k, type = "l", col = "black",
+     xlab = "k", ylab = expression(hat(gamma)),
+     main = "Estimateur des moments selon k — France sans J.C.",
+     ylim = c(-0.1, 0.05))
+abline(h = 0, lty = 2, col = "gray")
+```
+
+## Régions stables et Valeurs initiales $\hat{\gamma}_\text{ini}$
+
+```{r france-sjc-regions}
+# Region stable
+k_stable_start  <- 7000
+k_stable_end    <- 10500
+
+
+gamma_ini_low  <- min(gamma_k[k_seq >= k_stable_start  & k_seq <= k_stable_end]) 
+gamma_ini_high <- max(gamma_k[k_seq >= k_stable_start  & k_seq <= k_stable_end])
+
+
+gamma_ini_seq <- seq(gamma_ini_low, gamma_ini_high, by = 0.01)
+s0            <- length(gamma_ini_seq)
+
+
+plot(k_seq, gamma_k, type = "l", col = "black",
+     xlab = "k", ylab = expression(hat(gamma)),
+     main = "Estimateur des moments — France (régions marquées)",
+     ylim = c(-0.1, 0.05))
+abline(h = 0, lty = 2, col = "gray")
+abline(v = c(k_stable_start,  k_stable_end),  lty = 2, col = "orange")
+legend("topright",
+       legend = c(paste0("Région stable [", k_stable_start,  ", ", k_stable_end,  "]  \nγ_ini_low = ",  round(gamma_ini_low, 2), "\nγ_ini_high = ",  round(gamma_ini_high, 2))),
+       col = c("orange"), lty = 2, lwd = 1.5, bty = "n", cex = 0.75)
+```
+
+
+
+## Courbe de l'AMSE moyen
+
+```{r france-sjc-amse}
+k_max_amse <- max(k_seq)
+k_seq_amse <- seq(2, k_max_amse, by=10)
+Zj_all     <- compute_Zj(x, k_max_amse)
+
+amse_matrix <- matrix(NA, nrow = s0, ncol = length(k_seq))
+for (s in 1:s0) {
+  gi <- gamma_ini_seq[s]
+  amse_matrix[s, ] <- sapply(k_seq, function(k) amse_hat(k, gi, Zj_all))
+}
+amse_avg <- colMeans(amse_matrix, na.rm = TRUE)
+
+plot(k_seq, amse_avg, type = "l", col = "navy",
+     xlab = "k", ylab = "AMSE moyen", ylim = c(0, 0.3),
+     main = "AMSE moyen de l'estimateur des moments — France sans J.C.")
+```
+
+## Calcul de $\hat{\gamma}$ final
+
+```{r france-sjc-gamma-final}
+k_gamma_min <- 6700
+k_gamma_max <- 11000
+
+gamma_final_france_sjc <- mean(gamma_k[k_seq >= k_gamma_min & k_seq <= k_gamma_max], na.rm = TRUE)
+cat("γ̂ final =", round(gamma_final_france_sjc, 4), "\n")
+
+
+plot(k_seq, amse_avg, type = "l", col = "navy",
+     xlab = "k", ylab = "AMSE moyen", ylim = c(0, 0.3),
+     main = "AMSE moyen de l'estimateur des moments — France sans J.C.")
+
+abline(v = c(k_gamma_min, k_gamma_max), lty = 2, col = "orange")
+```
+
+## Courbe des estimateurs du point terminal x*
+
+```{r france-sjc-endpoint}
+endpoint_estimates <- sapply(k_seq, function(k) {
+  tryCatch(endpoint_estimator(x, k, gamma_final_france_sjc)$x_star, error = function(e) NA)
+})
+
+plot(k_seq, endpoint_estimates, type = "l", col = "darkgreen",
+     xlab = "k", ylab = "x* (jours)", ylim=c(45800, 46500),
+     main = bquote("Point terminal x* (" * hat(gamma) == .(round(gamma_final_france_sjc, 4)) * " fixé)"))
+```
+
+## Estimation finale de la limite x*
+
+```{r france-sjc-endpoint-zoom}
+k_ep_min <- 8000
+k_ep_max <- 10500
+
+plot(k_seq, endpoint_estimates, type = "l", col = "darkgreen",
+     xlab = "k", ylab = "x* (jours)", ylim=c(45800, 46400), 
+     main = bquote("Estimation finale x* (" * hat(gamma) == .(round(gamma_final_france_sjc, 4)) * " fixé)"))
+
+k_ep_seq             <- k_ep_min:k_ep_max
+ep_vals              <- sapply(k_ep_seq, function(k) {
+  tryCatch(endpoint_estimator(x, k, gamma_final_france_sjc)$x_star, error = function(e) NA)
+})
+a_vals               <- sapply(k_ep_seq, function(k) {
+  tryCatch(endpoint_estimator(x, k, gamma_final_france_sjc)$a, error = function(e) NA)
+})
+
+x_star_france_sjc    <- mean(ep_vals, na.rm = TRUE)
+abline(h = x_star_france_sjc, lty = 2, col = "blue")
+abline(v = c(k_ep_min, k_ep_max), lty = 2, col = "orange")
+legend("topright",
+       legend = paste0("x* = ", round(x_star_france_sjc/JOURS_PAR_ANNEE, 2), " ans"),
+       col = "blue", lty = 2, bty = "n", cex = 0.8)
+```
+
+## Résultats
+
+```{r france-sjc-resultats}
+a_mean               <- mean(a_vals, na.rm = TRUE)
+k_mean               <- mean(k_ep_seq)
+se_xstar             <- sqrt(ci_var(gamma_final_france_sjc) / k_mean) * a_mean
+upper_95_france_sjc  <- x_star_france_sjc + qnorm(0.95) * se_xstar
+
+resultats <- data.frame(
+  Indicateur = c("Gamma estimé", "Âge maximum observé", "Age limite x*", "Borne supérieure (95%)"),
+  Valeur_jours = c(
+    round(gamma_final_france_sjc, 4),
+    round(max(x), 1),
+    round(x_star_france_sjc, 1),
+    round(upper_95_france_sjc, 1)
+  ),
+  Valeur_annees = c(
+    NA,
+    round(max(x) / JOURS_PAR_ANNEE, 2),
+    round(x_star_france_sjc / JOURS_PAR_ANNEE, 2),
+    round(upper_95_france_sjc / JOURS_PAR_ANNEE, 2)
+  )
+)
+
+kable(resultats, caption = "Tableau récapitulatif (France sans JC)", digits = 2)
+```
+
+\newpage
+
+---
+
+# Tableau comparatif final
+
+```{r comparatif, results='asis'}
+comparaison <- data.frame(
+  "Jeu de données" = c("France", "France sans Jeanne Calment"),
+  "N" = c(
+    length(data_France),
+    length(data_France_sjc)
+  ),
+  "gamma_hat" = round(c(
+    gamma_final_france,
+    gamma_final_france_sjc), 4),
+  "Age_max" = round(c(
+    max(data_France),
+    max(data_France_sjc)) / JOURS_PAR_ANNEE, 2),
+  "x_star" = round(c(
+    x_star_france,
+    x_star_france_sjc) / JOURS_PAR_ANNEE, 2),
+  "upper_95" = round(c(
+    upper_95_france,
+    upper_95_france_sjc) / JOURS_PAR_ANNEE, 2),
+  check.names = FALSE
+)
+
+kable(comparaison,
+      align     = c("l","r","r","r","r","r"),
+      col.names = c("Jeu de données", "N", "$\\hat{\\gamma}$",
+                    "Age max (ans)", "$\\hat{x}^{*}$ (ans)", "Borne sup. 95% (ans)"),
+      escape    = FALSE,
+      caption   = "Estimations de l'âge limite selon Einmahl & Smeets (2009)") %>%
+  kable_styling(full_width = FALSE)
+```
