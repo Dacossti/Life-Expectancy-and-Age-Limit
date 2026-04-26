@@ -1,11 +1,13 @@
 ---
 title: "Projet tutoré"
-subtitle: "Espérance de vie & Age limite"
+subtitle: "Approche d’Einmahl et Smeets (2009)"
 author: 
 - Stave Icnel Dany OSIAS
+- Keevson Judlin VAL
+- Jana AL JAMAL
+- Khadim FALL
 
-
-date: 2026-04-14
+date: 2026-04-26
 lang: fr
 
 format:
@@ -64,7 +66,7 @@ th, td {
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-  echo    = FALSE,
+  echo    = TRUE,
   warning = FALSE,
   message = FALSE,
   fig.align = "center",
@@ -207,13 +209,17 @@ s0            <- length(gamma_ini_seq)
 
 plot(k_seq, gamma_k, type = "l", col = "black",
      xlab = "k", ylab = expression(hat(gamma)),
-     main = "Estimateur des moments — France (régions marquées)",
+     main = "",
      ylim = c(-0.1, 0.05))
 abline(h = 0, lty = 2, col = "gray")
 abline(v = c(k_stable_start,  k_stable_end),  lty = 2, col = "orange")
 legend("topright",
        legend = c(paste0("Région stable [", k_stable_start,  ", ", k_stable_end,  "]  \nγ_ini_low = ",  round(gamma_ini_low, 2), "\nγ_ini_high = ",  round(gamma_ini_high, 2))),
        col = c("orange"), lty = 2, lwd = 1.5, bty = "n", cex = 0.75)
+
+# Sauvegarde du graphique affiché
+dev.copy(png, "fig_gamma_k_france.png", width = 1200, height = 800, res = 150)
+dev.off()
 ```
 
 ## Courbe de l'AMSE moyen
@@ -243,11 +249,18 @@ k_gamma_max <- 6000
 
 gamma_final_france <- mean(gamma_k[k_seq >= k_gamma_min & k_seq <= k_gamma_max], na.rm = TRUE)
 
+
 plot(k_seq, amse_avg, type = "l", col = "navy",
      xlab = "k", ylab = "AMSE moyen", ylim = c(0, 0.3),
-     main = "AMSE moyen de l'estimateur des moments — France")
+     main = "")
 
 abline(v = c(k_gamma_min, k_gamma_max), lty = 2, col = "orange")
+legend("topright",
+       legend = c(paste0("Région stable [", k_gamma_min,  ", ", k_gamma_max,  "]")),
+       col = c("orange"), lty = 2, lwd = 1.5, bty = "n", cex = 0.75)
+
+dev.copy(png, "fig_amse_france.png", width = 1200, height = 800, res = 150)
+dev.off()
 ```
 
 ## Point terminal x*
@@ -268,9 +281,10 @@ plot(k_seq, endpoint_estimates, type = "l", col = "darkgreen",
 k_ep_min <- 7000
 k_ep_max <- 10500
 
+
 plot(k_seq, endpoint_estimates, type = "l", col = "darkgreen",
      xlab = "k", ylab = "x* (jours)", ylim=c(46500, 47500), 
-     main = bquote("Estimation finale x* (" * hat(gamma) == .(round(gamma_final_france, 4)) * " fixé)"))
+     main = bquote(""))
 
 k_ep_seq        <- k_ep_min:k_ep_max
 ep_vals         <- sapply(k_ep_seq, function(k) {
@@ -284,8 +298,18 @@ x_star_france   <- mean(ep_vals, na.rm = TRUE)
 abline(h = x_star_france, lty = 2, col = "blue")
 abline(v = c(k_ep_min, k_ep_max), lty = 2, col = "orange")
 legend("topright",
-       legend = paste0("x* = ", round(x_star_france/JOURS_PAR_ANNEE, 2), " ans"),
-       col = "blue", lty = 2, bty = "n", cex = 0.8)
+       legend = c(
+         paste0("x* = ", round(x_star_france / JOURS_PAR_ANNEE, 2), " ans"),
+         paste0("Région stable [", k_ep_min, ", ", k_ep_max, "]")
+       ),
+       col = c("blue", "orange"),
+       lty = 2,
+       lwd = c(1, 1.5),
+       bty = "n",
+       cex = 0.8)
+
+dev.copy(png, "fig_ep_k_france.png", width = 1200, height = 800, res = 150)
+dev.off()
 ```
 
 ## Résultats
@@ -365,13 +389,16 @@ s0            <- length(gamma_ini_seq)
 
 plot(k_seq, gamma_k, type = "l", col = "black",
      xlab = "k", ylab = expression(hat(gamma)),
-     main = "Estimateur des moments — France (régions marquées)",
+     main = "",
      ylim = c(-0.1, 0.05))
 abline(h = 0, lty = 2, col = "gray")
 abline(v = c(k_stable_start,  k_stable_end),  lty = 2, col = "orange")
 legend("topright",
        legend = c(paste0("Région stable [", k_stable_start,  ", ", k_stable_end,  "]  \nγ_ini_low = ",  round(gamma_ini_low, 2), "\nγ_ini_high = ",  round(gamma_ini_high, 2))),
        col = c("orange"), lty = 2, lwd = 1.5, bty = "n", cex = 0.75)
+
+dev.copy(png, "fig_gamma_k_france_sjc.png", width = 1200, height = 800, res = 150)
+dev.off()
 ```
 
 
@@ -407,9 +434,15 @@ cat("γ̂ final =", round(gamma_final_france_sjc, 4), "\n")
 
 plot(k_seq, amse_avg, type = "l", col = "navy",
      xlab = "k", ylab = "AMSE moyen", ylim = c(0, 0.3),
-     main = "AMSE moyen de l'estimateur des moments — France sans J.C.")
+     main = "")
 
 abline(v = c(k_gamma_min, k_gamma_max), lty = 2, col = "orange")
+legend("topright",
+       legend = c(paste0("Région stable [", k_gamma_min,  ", ", k_gamma_max,  "]")),
+       col = c("orange"), lty = 2, lwd = 1.5, bty = "n", cex = 0.75)
+
+dev.copy(png, "fig_amse_france_sjc.png", width = 1200, height = 800, res = 150)
+dev.off()
 ```
 
 ## Courbe des estimateurs du point terminal x*
@@ -432,7 +465,7 @@ k_ep_max <- 10500
 
 plot(k_seq, endpoint_estimates, type = "l", col = "darkgreen",
      xlab = "k", ylab = "x* (jours)", ylim=c(45800, 46400), 
-     main = bquote("Estimation finale x* (" * hat(gamma) == .(round(gamma_final_france_sjc, 4)) * " fixé)"))
+     main = bquote(""))
 
 k_ep_seq             <- k_ep_min:k_ep_max
 ep_vals              <- sapply(k_ep_seq, function(k) {
@@ -446,8 +479,18 @@ x_star_france_sjc    <- mean(ep_vals, na.rm = TRUE)
 abline(h = x_star_france_sjc, lty = 2, col = "blue")
 abline(v = c(k_ep_min, k_ep_max), lty = 2, col = "orange")
 legend("topright",
-       legend = paste0("x* = ", round(x_star_france_sjc/JOURS_PAR_ANNEE, 2), " ans"),
-       col = "blue", lty = 2, bty = "n", cex = 0.8)
+       legend = c(
+         paste0("x* = ", round(x_star_france_sjc / JOURS_PAR_ANNEE, 2), " ans"),
+         paste0("Région stable [", k_ep_min, ", ", k_ep_max, "]")
+       ),
+       col = c("blue", "orange"),
+       lty = 2,
+       lwd = c(1, 1.5),
+       bty = "n",
+       cex = 0.8)
+
+dev.copy(png, "fig_ep_k_france_sjc.png", width = 1200, height = 800, res = 150)
+dev.off()
 ```
 
 ## Résultats
@@ -507,8 +550,8 @@ comparaison <- data.frame(
 
 kable(comparaison,
       align     = c("l","r","r","r","r","r"),
-      col.names = c("Jeu de données", "N", "$\\hat{\\gamma}$",
-                    "Age max (ans)", "$\\hat{x}^{*}$ (ans)", "Borne sup. 95% (ans)"),
+      col.names = c("Jeu de données", "N", "γ",
+                    "Age max (ans)", "Age limite x* (ans)", "Borne sup. 95% (ans)"),
       escape    = FALSE,
       caption   = "Estimations de l'âge limite selon Einmahl & Smeets (2009)") %>%
   kable_styling(full_width = FALSE)

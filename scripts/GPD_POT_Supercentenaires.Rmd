@@ -1,11 +1,14 @@
 ---
 title: "Projet tutoré"
-subtitle: "Espérance de vie & Age limite"
+subtitle: "Approche POT/GPD"
 author: 
 - Stave Icnel Dany OSIAS
+- Keevson Judlin VAL
+- Jana AL JAMAL
+- Khadim FALL
 
 
-date: 2026-04-14
+date: 2026-04-26
 lang: fr
 
 format:
@@ -82,7 +85,47 @@ library(extRemes)
 JOURS_PAR_ANNEE <- 365.25
 
 # Fonctions utilitaires
-stability_plot_gpd <- function(x, seuils) {
+mrl_plot <- function(x, nint = 100, alpha = 0.05, seuil_retenu = NULL) {
+  
+  n   <- length(x)
+  r   <- range(x, finite = TRUE)
+  u.i <- matrix(seq(r[1], r[2] - 1, , nint), ncol = 1)
+  z.alpha <- abs(qnorm(1 - alpha/2))
+  
+  mrlfun <- function(u, x, z) {
+    eid <- x > u
+    xu  <- x[eid]
+    n   <- length(xu)
+    m   <- mean(xu - u)
+    s   <- sqrt(var(xu) / n)
+    c(m - s * z, m, m + s * z)
+  }
+  
+  out <- t(apply(u.i, 1, mrlfun, x = x, z = z.alpha))
+  yl  <- range(c(out), finite = TRUE)
+  
+  # Même tracé qu'avant mais labels en français
+  plot(u.i, out[, 2], type = "l",
+       xlab = "Seuil u (jours)",
+       ylab = "Moyenne des excès",
+       ylim = yl)
+  lines(u.i, out[, 1], lty = 2, col = "gray", lwd = 1.5)
+  lines(u.i, out[, 3], lty = 2, col = "gray", lwd = 1.5)
+  
+  # Ligne verticale seuil retenu
+  if (!is.null(seuil_retenu)) {
+    abline(v = seuil_retenu, lty = 2, col = "red", lwd = 2)
+    legend("topright",
+           legend = paste0("Seuil : ", seuil_retenu, " j (",
+                           round(seuil_retenu / 365.25, 2), " ans)"),
+           col = "red", lty = 2, lwd = 2, bty = "n", cex = 0.8)
+  }
+  
+  invisible(out)
+}
+
+
+stability_plot_gpd <- function(x, seuils, seuil_retenu = NULL) {
   
   resultats <- lapply(seuils, function(u) {
     exc <- x[x > u]
@@ -106,16 +149,20 @@ stability_plot_gpd <- function(x, seuils) {
   n_vals         <- sapply(resultats, `[[`, "n")
   valide         <- is.finite(xi_vals)
   
-  
   par(mfrow = c(2, 1), mar = c(4, 4, 3, 1))
   
-    
   plot(seuils[valide], sigma_adj_vals[valide], type = "l", col = "darkorange", lwd = 1.5,
        xlab = "",
        ylab = bquote("Echelle " ~ hat(sigma)*"*"),
        main = "")
   abline(h = mean(sigma_adj_vals[valide], na.rm = TRUE), lty = 2, col = "gray")
-
+  if (!is.null(seuil_retenu)) {
+    abline(v = seuil_retenu, lty = 2, col = "red", lwd = 2)
+    legend("topright",
+           legend = paste0("Seuil : ", seuil_retenu, " j  (",
+                           round(seuil_retenu / 365.25, 2), " ans)"),
+           col = "red", lty = 2, lwd = 2, bty = "n", cex = 0.8)
+  }
   axis(side = 3, at = seuils[valide],
        labels = round(n_vals[valide]),
        cex.axis = 0.5, col.axis = "blue", tick = FALSE)
@@ -126,6 +173,9 @@ stability_plot_gpd <- function(x, seuils) {
        ylab = bquote("Forme " ~ hat(xi)),
        main = "")
   abline(h = 0, lty = 2, col = "gray")
+  if (!is.null(seuil_retenu)) {
+    abline(v = seuil_retenu, lty = 2, col = "red", lwd = 2)
+  }
   
   par(mfrow = c(1, 1))
   
@@ -191,6 +241,81 @@ gpd_endpoint_estimate <- function(x, u) {
   )
 }
 
+diagnostics_plot <- function(x, seuils, seuil_retenu = NULL,
+                             titre = "",
+                             png_name = NULL,
+                             width    = 1400, height   = 1900, res = 200) {
+  
+  draw <- function() {
+    par(mfrow = c(3, 1), mar = c(4, 4, 3, 1), oma = c(0, 0, 3, 0))
+    
+    # Panneau 1 : MRL
+    mrl_plot(x, seuil_retenu = seuil_retenu)
+    
+    old_par <- par(mfrow = c(3, 1), mar = c(4, 4, 3, 1))
+    par(mfg = c(2, 1))  # forcer le prochain plot sur panneau 2
+    
+    resultats <- lapply(seuils, function(u) {
+      exc <- x[x > u]
+      if (length(exc) < 30) return(c(xi = NA, sigma_adj = NA, n = length(exc)))
+      fit <- tryCatch(
+        extRemes::fevd(x, threshold = u, type = "GP", method = "Lmoments"),
+        error = function(e) NULL
+      )
+      if (is.null(fit)) return(c(xi = NA, sigma_adj = NA, n = length(exc)))
+      xi        <- unname(fit$results["shape"])
+      sigma     <- unname(fit$results["scale"])
+      c(xi = xi, sigma_adj = sigma - xi * u, n = length(exc))
+    })
+    
+    xi_vals        <- sapply(resultats, `[[`, "xi")
+    sigma_adj_vals <- sapply(resultats, `[[`, "sigma_adj")
+    n_vals         <- sapply(resultats, `[[`, "n")
+    valide         <- is.finite(xi_vals)
+    
+    # Panneau 2 : sigma*
+    plot(seuils[valide], sigma_adj_vals[valide], type = "l", col = "darkorange", lwd = 1.5,
+         xlab = "", ylab = bquote("Echelle " ~ hat(sigma)*"*"), main = "")
+    abline(h = mean(sigma_adj_vals[valide], na.rm = TRUE), lty = 2, col = "gray")
+    if (!is.null(seuil_retenu)) {
+      abline(v = seuil_retenu, lty = 2, col = "red", lwd = 2)
+      legend("topright",
+             legend = paste0("Seuil : ", seuil_retenu, " j (",
+                             round(seuil_retenu / 365.25, 2), " ans)"),
+             col = "red", lty = 2, lwd = 2, bty = "n", cex = 0.8)
+    }
+    axis(side = 3, at = seuils[valide],
+         labels = round(n_vals[valide]),
+         cex.axis = 0.5, col.axis = "blue", tick = FALSE)
+    mtext("Nombre d'excès", side = 3, line = 2, col = "blue", cex = 0.8)
+    
+    # Panneau 3 : xi
+    plot(seuils[valide], xi_vals[valide], type = "l", col = "darkred", lwd = 1.5,
+         xlab = "Seuil u (jours)", ylab = bquote("Forme " ~ hat(xi)), main = "")
+    abline(h = 0, lty = 2, col = "gray")
+    if (!is.null(seuil_retenu)) {
+      abline(v = seuil_retenu, lty = 2, col = "red", lwd = 2)
+    }
+    
+    # Titre global
+    if (nchar(titre) > 0)
+      mtext(titre, outer = TRUE, cex = 1.0, font = 2)
+    
+    par(mfrow = c(1, 1))
+  }
+  
+  # Affichage dans le document
+  draw()
+  
+  # Sauvegarde PNG si demandée
+  if (!is.null(png_name)) {
+    png(png_name, width = width, height = height, res = res)
+    draw()
+    dev.off()
+    cat("Sauvegardé :", png_name, "\n")
+  }
+}
+
 ```
 
 
@@ -198,22 +323,41 @@ gpd_endpoint_estimate <- function(x, u) {
 ```{r}
 library(readxl)
 data_sup <-read_excel("C:/Users/ASUS/Downloads/R/Project/Supercentenarians/supercentenaires.xlsx")
-age_JC <- max(data_sup$AGEDAYS)
 
-boxplot(data_sup$AGEDAYS)
+age_JC <- max(data_sup$AGEDAYS)
+```
+
+```{r boxplots-france, fig.width=7, fig.height=5, include=FALSE}
+par(mfrow = c(1, 2), mar = c(4, 4, 3, 1))
+
+boxplot(data_sup$AGEDAYS[data_sup$COUNTRY == "FRA"],
+        col = "steelblue", border = "navy",
+        ylab = "Âge (jours)",
+        main = "France",
+        outline = TRUE)
+
+boxplot(data_sup$AGEDAYS[data_sup$COUNTRY == "FRA" &
+                                           data_sup$AGEDAYS < age_JC],
+        col = "darkorange", border = "darkred",
+        ylab = "",
+        main = "France sans Jeanne Calment",
+        outline = TRUE)
+
+par(mfrow = c(1, 1))
+
+dev.copy(png, "fig_boxplot_france.png", width = 1400, height = 900, res = 150)
+dev.off()
 ```
 
 # Supercentenaires de la France
 
 ```{r}
 data_France_105 <- data_sup$AGEDAYS[data_sup$COUNTRY == "FRA"]
-length(data_France_105)
 ```
 
 
 ```{r}
-mrlplot(data_France_105)
-threshrange.plot(data_France_105, nint=20, type="GP", r=c(39000, 41000))
+mrl_plot(data_France_105)
 
 seuils <- seq(39000, 41000, by = 30)
 
@@ -224,13 +368,20 @@ res <- stability_plot_gpd(data_France_105, seuils)
 ```{r}
 seuil_France_105=39420
 
-gpd_mom_France_105= fevd(data_France_105, threshold = seuil_France_105,type = "GP",method = "Lmoments")
+diagnostics_plot(data_France_105, seuils,
+                seuil_retenu = seuil_France_105,
+                titre    = "France",
+                png_name = "fig_diag_france.png")
 
-summary(gpd_mom_France_105)
 ```
 
 
+
+
+
 ```{r}
+gpd_mom_France_105= fevd(data_France_105, threshold = seuil_France_105,type = "GP",method = "Lmoments")
+
 plot(gpd_mom_France_105)
 ```
 
@@ -253,21 +404,27 @@ data_France_105_sjc <- data_sup$AGEDAYS[data_sup$COUNTRY == "FRA" & data_sup$AGE
 ```{r}
 mrlplot(data_France_105_sjc)
 
-seuils <- seq(38500,41000, by = 30)
+seuils_sjc <- seq(38500,41000, by = 30)
 
-res <- stability_plot_gpd(data_France_105_sjc, seuils)
+res <- stability_plot_gpd(data_France_105_sjc, seuils_sjc)
+
 ```
 
 
 ```{r}
 seuil_France_105_sjc=39100
 
-gpd_mom_France_105_sjc= fevd(data_France_105_sjc, threshold = seuil_France_105_sjc,type = "GP",method = "Lmoments")
-
-summary(gpd_mom_France_105_sjc)
+diagnostics_plot(data_France_105_sjc, seuils_sjc,
+                seuil_retenu = seuil_France_105_sjc,
+                titre    = "France sans Jeanne Calment",
+                png_name = "fig_diag_france_sjc.png")
 ```
 
 ```{r}
+gpd_mom_France_105_sjc= fevd(data_France_105_sjc, threshold = seuil_France_105_sjc,type = "GP",method = "Lmoments")
+
+summary(gpd_mom_France_105_sjc)
+
 plot(gpd_mom_France_105_sjc)
 ```
 
@@ -301,7 +458,7 @@ tableau <- data.frame(
   Seuil_annees = round(c(
     seuil_France_105,
     seuil_France_105_sjc
-    )/ 365, 2),
+    )/ 365.25, 2),
   
   Nb_exces = c(
     length(data_France_105[data_France_105 > seuil_France_105]),
@@ -325,4 +482,7 @@ kable(tableau,
                 latex_options = c("hold_position")) %>%
   collapse_rows(columns = c(1, 3, 4), valign = "middle")
 ```
+
+
+
 
