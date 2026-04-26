@@ -11,11 +11,12 @@
 
 ## 🧭 Project Overview
 
-This project investigates:
-1. **Life Expectancy** trends across genders, countries and years.
-2. **Human Lifespan Limit** estimation using Extreme Value Theory (EVT).
+This project investigates two complementary questions:
 
-The workflow combines data processing, statistical analysis, geospatial visualization, and advanced mathematical modeling.
+1. **Life Expectancy** — trends across genders, countries and years.
+2. **Human Lifespan Limit** — estimation of a theoretical upper bound using Extreme Value Theory (EVT).
+
+The workflow combines data processing, statistical modelling, geospatial visualisation, and advanced mathematical modelling, and is fully reproducible in R.
 
 ---
 
@@ -23,14 +24,10 @@ The workflow combines data processing, statistical analysis, geospatial visualiz
 
 ### 🎯 Objectives
 
-- Compute and analyze **life expectancy at age x** for all available countries.  
-- Study **temporal trends** from the earliest to the latest year of data.  
-- Compare **male vs female** life expectancy gaps.  
-- Build **global and country-specific visualizations**, including:
-  - Time series
-  - Boxplots and distributions
-  - Choropleth world maps
-  - Population pyramids  
+- Compute and analyze **life expectancy at age x** for all available countries.
+- Study **temporal trends** from the earliest to the latest year of data.
+- Compare **male vs female** life expectancy gaps.
+- Build **global and country-specific visualisations**, including time series, boxplots, choropleth world maps, and population pyramids.
 
 ---
 
@@ -39,176 +36,132 @@ The workflow combines data processing, statistical analysis, geospatial visualiz
 - **Human Life-Table Database (HLD)** — primary source of life expectancy at birth data.
 - **Human Mortality Database (HMD)** — complementary country-level mortality and demographic indicators.
 
-All datasets were cleaned, harmonized, and matched using standardized country names and ISO3 codes prior to analysis.  
-No raw data from these sources is redistributed in this repository.
-
+All datasets were cleaned, harmonised, and matched using standardised country names and ISO3 codes. No raw data is redistributed in this repository.
 
 ---
 
 ### 🧹 Data Processing
 
-- Removal of duplicates, missing values, and inconsistent entries  
-- Selection of relevant variables:  
-  **Country**, **Year**, **Age**, **Sex**, **eₓ**  
-- Normalization of variable names and formats  
-- Standardization of country names using **ISO3 codes**, including:
-  - Automatic detection via pattern matching  
-  - Conversion using the `countrycode` package  
-  - Manual corrections for problematic territories such as:  
-    **Kosovo**, **Indian Ocean Territories**,  
-    **Ashmore and Cartier Islands**,  
-    **Siachen Glacier**  
-- Merging all cleaned datasets into a unified analytical dataset  
+- Removal of duplicates, missing values, and inconsistent entries.
+- Selection of relevant variables: **Country**, **Year**, **Age**, **Sex**, **eₓ**.
+- Standardisation of country names using **ISO3 codes**, with manual corrections for problematic territories (Kosovo, Indian Ocean Territories, Siachen Glacier, etc.).
+- Merging all cleaned datasets into a unified analytical dataset.
 
 ---
 
 ### 📊 Analyses Performed
 
-- Distribution of life expectancy by **age** and **sex**  (boxplot, histogram)
-- Time series analysis of life expectancy trends: Sex gap analysis (Female − Male), Cross-country comparisons  
-- Regional or continent-level comparisons  (choropleth maps)
+- Distribution of life expectancy by **age** and **sex** (boxplot, histogram).
+- Time series analysis: sex gap (Female − Male), cross-country comparisons.
+- Regional comparisons via choropleth maps.
 
 ---
 
-## 🥈 PART II — Human Maximum Lifespan (Age Bound)
+## 🥈 PART II — Human Maximum Lifespan Estimation
 
 ### 🎯 Objectives
 
-- Estimate the **theoretical maximum age** a human can reach.  
-- Analyze **deaths at extreme ages**.  
-- Apply **Extreme Value Theory (EVT)** to model exceptional lifespans.  
-- Compare results **across countries** and **between sexes** (male vs female).  
+- Estimate the **theoretical maximum age** a human can reach.
+- Apply **Extreme Value Theory (EVT)** to model exceptional lifespans.
+- Assess the **impact of outliers** (e.g. Jeanne Calment) on the estimates.
+- Compare results across **two independent EVT approaches**.
 
 ---
 
 ### 📂 Data Used
 
-- **International Database on Longevity (IDL)** — detailed longevity and extreme-age demographic data (used for extreme values analysis and future estimation of human lifespan limit).
+- **International Database on Longevity (IDL)** — validated ages at death for individuals aged 105 and over, covering years **1906 to 2024**. The study is restricted to **French supercentenarians** to satisfy the i.i.d. assumption required by EVT and to ensure sufficient sample size.
+
+Two datasets are considered to isolate the effect of Jeanne Calment (122.45 years):
+
+| Dataset | N | Age max (years) |
+|---|---|---|
+| France (105+) | 15 054 | 122.45 |
+| France without Jeanne Calment | 15 053 | 118.93 |
 
 ---
 
 ### ⚙️ EVT Methodology
 
-#### 1. Threshold Selection  
-Select an optimal threshold **u** to retain only the most extreme age-at-death values.  
-Multiple diagnostic tools (mean excess plots, stability plots) are used to choose a robust threshold.
+#### Approach 1 — Peaks Over Threshold (POT) + GPD
 
-#### 2. Modeling with the Generalized Pareto Distribution (GPD)  
-The exceedances over the threshold are modeled using the **Generalized Pareto Distribution (GPD)**.  
+1. **Threshold selection** via Mean Residual Life plot and stability plots of ξ and σ*.
+2. **GPD fitting** using L-moments estimation (more robust than MLE when ξ ≈ 0).
+3. **Age bound estimation**: $\hat{x}^* = u - \hat{\sigma}/\hat{\xi}$ (valid when ξ < 0).
 
-We estimate the following parameters:
+**Interpretation of ξ**: ξ < 0 → finite upper bound; ξ ≥ 0 → no detectable limit.
 
-- **ξ (xi)** — shape parameter  
-- **σ (sigma)** — scale parameter  
+#### Approach 2 — Einmahl & Smeets (2009)
 
-**Interpretation of ξ**:  
-- **ξ < 0** → finite upper bound (suggests a maximum human lifespan)  
-- **ξ ≥ 0** → no detectable upper limit to lifespan  
+Based on the methodology of [Einmahl & Smeets (2009)](https://doi.org/10.1111/j.1467-9574.2008.00410.x), originally applied to 100m world records:
 
-#### 3. Age Bound Estimation  
-Using the fitted GPD model, we compute the **theoretical maximal age** (upper endpoint) implied by the data.
-
-#### 4. Diagnostic Tools  
-To validate the GPD fit and the threshold choice, we rely on:
-
-- **Q-Q plots**  
-- **Stability plots** for ξ  
-- **Threshold sensitivity analysis**
+1. **Moment estimator** of the extreme-value index γ (Dekkers et al., 1989).
+2. **Optimal k-region selection** via minimisation of the asymptotic mean squared error (AMSE).
+3. **Endpoint estimation**: $\hat{x}^* = \hat{b}_{n/k} - \hat{a}_{n/k}/\hat{\gamma}$.
+4. **95% upper confidence bound** via the asymptotic normality result of Dekkers et al. (1989).
 
 ---
 
-```mermaid
-mindmap
-  root) Human Life Expectancy & Lifespan Limit(
-    
-    Life Expectancy
-        📊 Data Collection
-            HLD (Human Life-Table Database)
-            HMD (Human Mortality Database)
-            
-        🧹 Data Preparation & Cleaning
-            Column harmonization
-            Handling duplicates & missing values
-            Country → ISO3 conversion
-            
-        🔎 Analysis
-            Life expectancy by sex
-            Life expectancy at different ages e(x)
-            Temporal trends (time series)
-            
-        🌍 Visualizations
-            Choropleth maps (male / female / total)
-            Population pyramids
-            Boxplots & distributions
-            Yearly evolution
-    
-    Age Limits
-        📊 Data Collection
-            IDL (International Database on Longevity)
-            
-        📐 Extreme Longevity Modeling
-            Extreme Value Theory (EVT)
-            Generalized Pareto Distribution (GPD)
-            Annual maximum / Peak Over Threshold
-            
-        ⚙️ Age Limit Estimation
-            Threshold selection
-            Parameter estimation (ξ, σ)
-            Projection of maximum possible age
-            
-        🧪 Validation & Interpretation
-            EVT diagnostics
-            Cross-country comparisons
-            Sex differences
-    
-    Final Deliverables
-        📁 Automation (R)
-            Reproducible scripts
-            Choropleth generation functions
-            Automatic plot export
-            
-        📝 Report & Presentation
-            Methodology
-            Key results
-            Limitations & future directions
+### 📊 Main Results
 
-```
+Both approaches yield consistent estimates, confirming the existence of a plausible upper bound to human lifespan:
 
+| Method | Dataset | $\hat{x}^*$ (years) | Upper 95% bound |
+|---|---|---|---|
+| GPD + L-moments | France | 129.37 | — |
+| GPD + L-moments | France w/o J.C. | 125.19 | — |
+| Einmahl & Smeets | France | 127.86 | 132.87 |
+| Einmahl & Smeets | France w/o J.C. | 125.87 | 129.86 |
+
+These results are consistent with the international literature, which places the human lifespan limit between **125 and 132 years** (Weon & Je, 2009; de Beer et al., 2017; Pearce & Raftery, 2021).
+
+---
 
 ## 🧱 Project Structure
 
 ```bash
-life
 📁 data/
-    HLD_database.csv             # You should upload the data yourself from the official site and place it there with this name
-    
+    HLD_database.csv          # Download from https://www.lifetable.de
+    supercentenaires.xlsx     # Download from https://www.supercentenarians.org
 
 📁 scripts/
-    plot_functions.R             # helper functions to plot boxplot, histogram, choropleth maps and timeseries animation
-    map_utils.R                  # helper function to map country names to ISO3
-    evt_age_bound.R              # Future
-                 
+    plot_functions.R          # Helper functions: boxplot, histogram, choropleth, timeseries
+    map_utils.R               # Country name → ISO3 mapping
+    GPD_Supercentenarians.Rmd # POT + GPD analysis (Quarto/RMarkdown)
+    EVT_100M.Rmd              # Einmahl & Smeets analysis (Quarto/RMarkdown)
 
 📄 README.md
-
 ```
 
-## 📊 Data Source and Acknowledgment
+---
 
-This project uses data from the **Human Life-table Database (HLD)**, maintained by the **Max Planck Institute for Demographic Research**.
+## 📚 Key References
 
-🌐 [https://www.lifetable.de](https://www.lifetable.de)
-
-The HLD database provides high-quality life table data for multiple countries and time periods and is widely used in demographic research.
+- Einmahl, J.H.J. & Smeets, S.G.W.R. (2009). Ultimate 100m World Records through Extreme-Value Theory. *Statistica Neerlandica*, 63(2), 154–186.
+- Dekkers, A.L.M., Einmahl, J.H.J. & de Haan, L. (1989). A moment estimator for the index of an extreme-value distribution. *Annals of Statistics*, 17(4), 1833–1855.
+- Weon, B.M. & Je, J.H. (2009). Theoretical estimation of maximum human lifespan. *Biogerontology*, 10, 65–71.
+- de Beer, J., Bardoutsos, A. & Janssen, F. (2017). Maximum human lifespan may increase to 125 years. *Nature*, 546, E16–E17.
+- Pearce, M. & Raftery, A.E. (2021). Probabilistic forecasting of maximum human lifespan by 2100. *Demographic Research*, 44(52), 1271–1294.
 
 ---
 
-⚠️ **Important:**  
-The HLD dataset is **not included** in this repository due to data usage and redistribution restrictions.
+## 📊 Data Sources and Acknowledgements
 
-Please refer to `data/README.md` for instructions on how to obtain the data.
+| Source | URL |
+|---|---|
+| Human Life-Table Database (HLD) | https://www.lifetable.de |
+| Human Mortality Database (HMD) | https://www.mortality.org |
+| International Database on Longevity (IDL) | https://www.supercentenarians.org |
+
+⚠️ Raw data are **not included** in this repository due to redistribution restrictions. Please download the data directly from the official sources and place them in the `data/` folder.
 
 ---
 
-📌 **Citation:**  
-If you use this project or its results, please cite the HLD database appropriately.
+## 👥 Authors
+
+- Stave Icnel Dany OSIAS
+- Keevson Judlin VAL
+- Jana AL JAMAL
+- Khadim FALL
+
+*Supervised by [Jonathan El Methni](https://sites.google.com/view/jonathanelmethni/accueil) — Université Grenoble Alpes, 2025–2026.*
