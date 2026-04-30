@@ -97,7 +97,7 @@ Based on the methodology of [Einmahl & Smeets (2009)](https://doi.org/10.1111/j.
 
 1. **Moment estimator** of the extreme-value index γ (Dekkers et al., 1989).
 2. **Optimal k-region selection** via minimisation of the asymptotic mean squared error (AMSE).
-3. **Endpoint estimation**: $\hat{x}^* = \hat{b}_{n/k} - \hat{a}_{n/k}/\hat{\gamma}$.
+3. **Endpoint estimation**: $\hat{x}^* = \hat{b}_text{n/k} - \hat{a}_text{n/k}/\hat{\gamma}$.
 4. **95% upper confidence bound** via the asymptotic normality result of Dekkers et al. (1989).
 
 ---
